@@ -2,7 +2,6 @@ package main
 
 import (
 	"bufio"
-	"encoding/json"
 	"flag"
 	"fmt"
 	"os"
@@ -14,9 +13,43 @@ import (
 
 // Keywords for filtering sensitive paths
 var keywords = []string{
-	"admin", "login", "secure", "account", "auth", "backup", "config", "token",
-	"password", "secret", "private", "internal", "debug", "test", "api", "manage",
-	"db", "database", "user", "signup", "register", "payment", "billing", "key", "access",
+	// Authentication & Access
+	"admin", "login", "signin", "auth", "oauth", "token", "key", "password", "passwd",
+	"credential", "session", "verify", "account", "logout",
+
+	// Configurations
+	"config", "settings", "preferences", "env", "environment", "properties", "setup",
+	".git", ".env", ".svn", ".ds_store", "manifest", "system",
+
+	// Backups
+	"backup", "bak", "archive", "restore", "dump", "snapshot", "old", "previous", "copy",
+	"save",
+
+	// APIs
+	"api", "endpoint", "service", "webhook", "handler", "rest", "graphql", "ws",
+
+	// Database
+	"db", "database", "sql", "mysql", "postgres", "mongodb", "nosql", "query", "schema",
+	"data", "dump",
+
+	// Sensitive Files
+	"private", "secure", "secret", "hidden", "restricted", "privileged", "confidential",
+	"classified", "keypair", "certificate", "cert", "pem", "pfx", "p12", "keystore",
+
+	// Development
+	"debug", "dev", "development", "staging", "test", "testing", "qa", "prototype", "sandbox",
+	"demo",
+
+	// Logging & Monitoring
+	"log", "logs", "trace", "debug", "monitor", "report", "status", "stats",
+
+	// Payment & Financial
+	"payment", "billing", "invoice", "creditcard", "card", "stripe", "paypal", "transaction",
+	"bank", "checkout",
+
+	// Miscellaneous
+	"adminpanel", "control", "dashboard", "superuser", "root", "master", "manager", "upload",
+	"download", "migrate", "migrate-backup", "sync", "webhook",
 }
 
 // Regex patterns for additional sensitive paths
@@ -25,35 +58,29 @@ var regexPatterns = []string{
 	`(?i)/auth\b`, `(?i)/token\b`, `(?i)/api\b`, `(?i)/private\b`,
 }
 
+// File extensions for image types to exclude
+var excludedFileExtensions = []string{
+	"png", "jpg", "jpeg", "gif", "bmp", "webp", "tiff", "ico",
+}
+
 // Multi-threaded worker function
 func worker(id int, jobs <-chan string, results chan<- string, wg *sync.WaitGroup) {
 	defer wg.Done()
 
 	for url := range jobs {
-		if isSensitive(url) {
+		if isSensitive(url) && !isExcludedFile(url) {
 			results <- url
 		}
 	}
 }
 
-// Check if a URL is sensitive, excluding image, CSS, and JS files
+// Check if a URL is sensitive
 func isSensitive(url string) bool {
-	// Exclude image, CSS, JS, and other asset files
-	extensions := []string{".png", ".jpg", ".jpeg", ".gif", ".css", ".js", ".svg", ".woff", ".woff2", ".ttf"}
-	for _, ext := range extensions {
-		if strings.HasSuffix(strings.ToLower(url), ext) {
-			return false // Ignore image, CSS, JS, or font files
-		}
-	}
-
-	// Check for sensitive keywords
 	for _, keyword := range keywords {
 		if strings.Contains(strings.ToLower(url), keyword) {
 			return true
 		}
 	}
-
-	// Check for sensitive regex patterns
 	for _, pattern := range regexPatterns {
 		matched, _ := regexp.MatchString(pattern, url)
 		if matched {
@@ -63,15 +90,48 @@ func isSensitive(url string) bool {
 	return false
 }
 
-// Main function
-func main() {
-	// Welcome message with new design
-	fmt.Println("💀💀💀 Developed by ghost__man01 💀💀💀")
+// Check if the URL is an excluded file type (image files)
+func isExcludedFile(url string) bool {
+	for _, ext := range excludedFileExtensions {
+		if strings.HasSuffix(strings.ToLower(url), "."+ext) {
+			return true
+		}
+	}
+	return false
+}
 
-	// Flags
-	inputFile := flag.String("input", "urls.txt", "Path to the input file containing URLs")
-	outputFile := flag.String("output", "filtered_urls.json", "Path to the output file")
+// Display help menu
+func showHelp() {
+	fmt.Println("GhostFilter - A tool to filter sensitive URLs from a list.")
+	fmt.Println()
+	fmt.Println("Usage:")
+	fmt.Println("  ghostfilter -i <input_file> -o <output_file>")
+	fmt.Println()
+	fmt.Println("Flags:")
+	fmt.Println("  -i, --input    Path to the input file containing URLs to filter.")
+	fmt.Println("  -o, --output   Path to the output file where filtered sensitive URLs will be saved.")
+	fmt.Println("  -h, --help     Show this help message and exit.")
+	fmt.Println()
+	fmt.Println("Example usage:")
+	fmt.Println("  ghostfilter -i urls.txt -o filtered_urls.txt")
+	fmt.Println()
+}
+
+func main() {
+	// Flags for input and output files
+	inputFile := flag.String("i", "urls.txt", "Path to the input file containing URLs")
+	outputFile := flag.String("o", "filtered_urls.txt", "Path to the output file")
+	helpFlag := flag.Bool("h", false, "Show help message")
 	flag.Parse()
+
+	// Show help if -h or --help is passed
+	if *helpFlag {
+		showHelp()
+		return
+	}
+
+	// Welcome message with design
+	fmt.Println("💀💀💀 Developed by ghost__man01 💀💀💀")
 
 	// Check input file existence
 	if _, err := os.Stat(*inputFile); os.IsNotExist(err) {
@@ -120,7 +180,7 @@ func main() {
 	wg.Wait()
 	close(results)
 
-	// Write results to output file
+	// Write results to output file (plain .txt without quotes)
 	output, err := os.Create(*outputFile)
 	if err != nil {
 		fmt.Printf("Error: Unable to create output file: %v\n", err)
@@ -128,12 +188,13 @@ func main() {
 	}
 	defer output.Close()
 
-	encoder := json.NewEncoder(output)
-	encoder.SetIndent("", "  ")
-	err = encoder.Encode(sensitiveURLs)
-	if err != nil {
-		fmt.Printf("Error: Unable to write to output file: %v\n", err)
-		os.Exit(1)
+	// Writing URLs to the output file line by line
+	for _, url := range sensitiveURLs {
+		_, err := fmt.Fprintln(output, url)
+		if err != nil {
+			fmt.Printf("Error: Unable to write URL to output file: %v\n", err)
+			os.Exit(1)
+		}
 	}
 
 	fmt.Printf("Filtering complete! Sensitive URLs saved to: %s\n", *outputFile)
