@@ -16,15 +16,14 @@ You can install **GhostFilter** globally using the `go install` command.
 
 1. Ensure you have Go installed on your system (Go 1.16 or later is recommended).
 2. Run the following command to install **GhostFilter**:
-
-   ```bash
-   go install github.com/ghost-man01/GhostFilter@latest
-   ```
+```bash
+go install github.com/ghost-man01/GhostFilter@latest
+ ```
 3. After installation, you can use the ghostfilter command globally from your terminal.
-###Usage
+## Usage
 GhostFilter filters sensitive URLs from a file and outputs the result to another file.
 
-###Command Syntax:
+## Command Syntax:
 ```bash
 ghostfilter -i <input_file> -o <output_file>
 ```
@@ -32,7 +31,7 @@ ghostfilter -i <input_file> -o <output_file>
 - -o, --output: Path to the output file where filtered sensitive URLs will be saved.
 - -h, --help: Display the help message.
 
-###Example Usage:
+## Example Usage:
 
 1. **Basic Example**: Filter URLs from urls.txt and save the results to filtered_urls.txt.
 
@@ -45,23 +44,23 @@ ghostfilter -i urls.txt -o filtered_urls.txt
 ```bash
 ghostfilter -h
 ```
-###Keywords & Patterns
+## Keywords & Patterns
 GhostFilter uses the following keywords and regex patterns to identify sensitive URLs:
 
 - Keywords: admin, login, password, token, api, config, db, backup, etc.
 - Regex Patterns: /admin\b, /auth\b, /token\b, etc.
 You can customize these keywords and patterns in the main.go file to suit your specific needs.
 
-###Contributing
+## Contributing
 Contributions are welcome! If you'd like to contribute to the project, feel free to open an issue or submit a pull request on [GitHub](https://github.com/ghost-man01/GhostFilter).
 
-###How to Contribute:
+## How to Contribute:
 1. Fork the repository
 2. Create a new branch
 3. Make your changes
 4. Open a pull request with a clear description of your changes
 
-###Contact
+## Contact
 Developed by [Siddhant Shukla aka ghost__man01](https://linkedin.com/in/sid-d-hant)
 
 For any questions, issues, or feature requests, please open an issue on the GitHub repository.
