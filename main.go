@@ -36,13 +36,24 @@ func worker(id int, jobs <-chan string, results chan<- string, wg *sync.WaitGrou
 	}
 }
 
-// Check if a URL is sensitive
+// Check if a URL is sensitive, excluding image, CSS, and JS files
 func isSensitive(url string) bool {
+	// Exclude image, CSS, JS, and other asset files
+	extensions := []string{".png", ".jpg", ".jpeg", ".gif", ".css", ".js", ".svg", ".woff", ".woff2", ".ttf"}
+	for _, ext := range extensions {
+		if strings.HasSuffix(strings.ToLower(url), ext) {
+			return false // Ignore image, CSS, JS, or font files
+		}
+	}
+
+	// Check for sensitive keywords
 	for _, keyword := range keywords {
 		if strings.Contains(strings.ToLower(url), keyword) {
 			return true
 		}
 	}
+
+	// Check for sensitive regex patterns
 	for _, pattern := range regexPatterns {
 		matched, _ := regexp.MatchString(pattern, url)
 		if matched {
@@ -54,22 +65,13 @@ func isSensitive(url string) bool {
 
 // Main function
 func main() {
-	// Flags for input and output files
-	inputFile := flag.String("i", "urls.txt", "Path to the input file containing URLs")
-	outputFile := flag.String("o", "filtered_urls.json", "Path to the output file")
-	flag.Parse()
+	// Welcome message with new design
+	fmt.Println("💀💀💀 Developed by ghost__man01 💀💀💀")
 
-	// Skull and Crossbones Design for the welcome message
-	fmt.Println(`
-           _________
-         /         \     
-        |  ( )   ( )  |    
-        |      ^      |     
-        |     '-'     |       
-         \___________/       
-             💀         
-  Developed by ghost_man01 | GhostFilter v1.0
-	`)
+	// Flags
+	inputFile := flag.String("input", "urls.txt", "Path to the input file containing URLs")
+	outputFile := flag.String("output", "filtered_urls.json", "Path to the output file")
+	flag.Parse()
 
 	// Check input file existence
 	if _, err := os.Stat(*inputFile); os.IsNotExist(err) {
