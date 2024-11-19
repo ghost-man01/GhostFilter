@@ -63,6 +63,9 @@ var excludedFileExtensions = []string{
 	"png", "jpg", "jpeg", "gif", "bmp", "webp", "tiff", "ico",
 }
 
+// Map to count keyword occurrences
+var keywordCount = make(map[string]int)
+
 // Multi-threaded worker function
 func worker(id int, jobs <-chan string, results chan<- string, wg *sync.WaitGroup) {
 	defer wg.Done()
@@ -70,6 +73,13 @@ func worker(id int, jobs <-chan string, results chan<- string, wg *sync.WaitGrou
 	for url := range jobs {
 		if isSensitive(url) && !isExcludedFile(url) {
 			results <- url
+
+			// Count keyword occurrences
+			for _, keyword := range keywords {
+				if strings.Contains(strings.ToLower(url), keyword) {
+					keywordCount[keyword]++
+				}
+			}
 		}
 	}
 }
@@ -100,27 +110,50 @@ func isExcludedFile(url string) bool {
 	return false
 }
 
+// Save keyword frequency statistics to a file
+func saveKeywordCounts(filePath string) {
+	file, err := os.Create(filePath)
+	if err != nil {
+		fmt.Printf("Error creating keyword stats file: %v\n", err)
+		return
+	}
+	defer file.Close()
+
+	for keyword, count := range keywordCount {
+		if count > 0 {
+			_, err := fmt.Fprintf(file, "%s: %d\n", keyword, count)
+			if err != nil {
+				fmt.Printf("Error writing to keyword stats file: %v\n", err)
+			}
+		}
+	}
+
+	fmt.Printf("Keyword statistics saved to: %s\n", filePath)
+}
+
 // Display help menu
 func showHelp() {
 	fmt.Println("GhostFilter - A tool to filter sensitive URLs from a list.")
 	fmt.Println()
 	fmt.Println("Usage:")
-	fmt.Println("  ghostfilter -i <input_file> -o <output_file>")
+	fmt.Println("  ghostfilter -i <input_file> -o <output_file> -k <keyword_stats_file>")
 	fmt.Println()
 	fmt.Println("Flags:")
 	fmt.Println("  -i, --input    Path to the input file containing URLs to filter.")
 	fmt.Println("  -o, --output   Path to the output file where filtered sensitive URLs will be saved.")
+	fmt.Println("  -k, --keyword  Path to the output file where keyword frequency stats will be saved.")
 	fmt.Println("  -h, --help     Show this help message and exit.")
 	fmt.Println()
 	fmt.Println("Example usage:")
-	fmt.Println("  ghostfilter -i urls.txt -o filtered_urls.txt")
+	fmt.Println("  ghostfilter -i urls.txt -o filtered_urls.txt -k keyword_stats.txt")
 	fmt.Println()
 }
 
 func main() {
-	// Flags for input and output files
+	// Flags for input, output, and keyword stats files
 	inputFile := flag.String("i", "urls.txt", "Path to the input file containing URLs")
 	outputFile := flag.String("o", "filtered_urls.txt", "Path to the output file")
+	keywordFile := flag.String("k", "keyword_stats.txt", "Path to the keyword statistics output file")
 	helpFlag := flag.Bool("h", false, "Show help message")
 	flag.Parse()
 
@@ -131,7 +164,7 @@ func main() {
 	}
 
 	// Welcome message with design
-	fmt.Println("💀💀💀 Developed by ghost__man01 💀💀💀")
+	fmt.Println("≡ƒÆÇ≡ƒÆÇ≡ƒÆÇ Developed by ghost__man01 ≡ƒÆÇ≡ƒÆÇ≡ƒÆÇ")
 
 	// Check input file existence
 	if _, err := os.Stat(*inputFile); os.IsNotExist(err) {
@@ -180,7 +213,7 @@ func main() {
 	wg.Wait()
 	close(results)
 
-	// Write results to output file (plain .txt without quotes)
+	// Write results to output file
 	output, err := os.Create(*outputFile)
 	if err != nil {
 		fmt.Printf("Error: Unable to create output file: %v\n", err)
@@ -188,7 +221,6 @@ func main() {
 	}
 	defer output.Close()
 
-	// Writing URLs to the output file line by line
 	for _, url := range sensitiveURLs {
 		_, err := fmt.Fprintln(output, url)
 		if err != nil {
@@ -196,6 +228,9 @@ func main() {
 			os.Exit(1)
 		}
 	}
+
+	// Save keyword statistics
+	saveKeywordCounts(*keywordFile)
 
 	fmt.Printf("Filtering complete! Sensitive URLs saved to: %s\n", *outputFile)
 }
