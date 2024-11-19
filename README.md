@@ -29,7 +29,9 @@ ghostfilter -i <input_file> -o <output_file>
 ```
 - -i, --input: Path to the input file containing URLs to be filtered.
 - -o, --output: Path to the output file where filtered sensitive URLs will be saved.
+- -k, frequency of sensitive words
 - -h, --help: Display the help message.
+
 
 ## Example Usage:
 
@@ -64,3 +66,14 @@ Contributions are welcome! If you'd like to contribute to the project, feel free
 Developed by [Siddhant Shukla aka ghost__man01](https://linkedin.com/in/sid-d-hant)
 
 For any questions, issues, or feature requests, please open an issue on the GitHub repository.
+
+### New Feature: Keyword Frequency Export
+
+GhostFilter now tracks and saves the frequency of sensitive keywords and regex matches to a separate file.
+
+#### Usage
+Run GhostFilter with the `-k` flag to specify the output file for keyword statistics:
+
+```bash
+ghostfilter -i urls.txt -o filtered_urls.txt -k keyword_stats.txt
+```
