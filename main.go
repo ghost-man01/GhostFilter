@@ -50,21 +50,28 @@ var keywords = []string{
 	// Miscellaneous
 	"adminpanel", "control", "dashboard", "superuser", "root", "master", "manager", "upload",
 	"download", "migrate", "migrate-backup", "sync", "webhook",
+
+	// Critical file extensions
+	"php", "gitignore", "bak", "env", "config", "ini", "conf", "log", "jsp", "asp", "sh", "bat",
 }
 
-// Regex patterns for additional sensitive paths
-var regexPatterns = []string{
-	`(?i)/admin\b`, `(?i)/config\b`, `(?i)/debug\b`, `(?i)/backup\b`,
-	`(?i)/auth\b`, `(?i)/token\b`, `(?i)/api\b`, `(?i)/private\b`,
-}
+// Combined regex pattern for sensitive paths
+var combinedRegex = regexp.MustCompile(`(?i)/admin\b|/config\b|/debug\b|/backup\b|/auth\b|/token\b|/api\b|/private\b`)
 
 // File extensions for image types to exclude
 var excludedFileExtensions = []string{
-	"png", "jpg", "jpeg", "gif", "bmp", "webp", "tiff", "ico",
+	"png", "jpg", "jpeg", "gif", "bmp", "webp", "tiff", "ico",  // Image files
+	"css", "scss", "sass", "less", "html", "htm", "js", "jsx", "ts", "tsx", "json", "xml", // Static files
+	"mp3", "wav", "ogg",  // Audio files
+	"mp4", "avi", "mov", "webm", "mkv", // Video files
+	"woff", "woff2", "eot", "ttf", "otf", // Fonts
 }
 
 // Map to count keyword occurrences
 var keywordCount = make(map[string]int)
+
+// Mutex to protect keywordCount map from race conditions
+var mu sync.Mutex
 
 // Multi-threaded worker function
 func worker(id int, jobs <-chan string, results chan<- string, wg *sync.WaitGroup) {
@@ -77,7 +84,9 @@ func worker(id int, jobs <-chan string, results chan<- string, wg *sync.WaitGrou
 			// Count keyword occurrences
 			for _, keyword := range keywords {
 				if strings.Contains(strings.ToLower(url), keyword) {
+					mu.Lock()
 					keywordCount[keyword]++
+					mu.Unlock()
 				}
 			}
 		}
@@ -86,21 +95,17 @@ func worker(id int, jobs <-chan string, results chan<- string, wg *sync.WaitGrou
 
 // Check if a URL is sensitive
 func isSensitive(url string) bool {
+	// Check for keywords
 	for _, keyword := range keywords {
 		if strings.Contains(strings.ToLower(url), keyword) {
 			return true
 		}
 	}
-	for _, pattern := range regexPatterns {
-		matched, _ := regexp.MatchString(pattern, url)
-		if matched {
-			return true
-		}
-	}
-	return false
+	// Check for regex patterns
+	return combinedRegex.MatchString(url)
 }
 
-// Check if the URL is an excluded file type (image files)
+// Check if the URL is an excluded file type
 func isExcludedFile(url string) bool {
 	for _, ext := range excludedFileExtensions {
 		if strings.HasSuffix(strings.ToLower(url), "."+ext) {
@@ -119,6 +124,9 @@ func saveKeywordCounts(filePath string) {
 	}
 	defer file.Close()
 
+	mu.Lock()
+	defer mu.Unlock()
+
 	for keyword, count := range keywordCount {
 		if count > 0 {
 			_, err := fmt.Fprintf(file, "%s: %d\n", keyword, count)
@@ -127,7 +135,6 @@ func saveKeywordCounts(filePath string) {
 			}
 		}
 	}
-
 	fmt.Printf("Keyword statistics saved to: %s\n", filePath)
 }
 
@@ -163,8 +170,9 @@ func main() {
 		return
 	}
 
-	// Welcome message with design
-	fmt.Println("≡ƒÆÇ≡ƒÆÇ≡ƒÆÇ Developed by ghost__man01 ≡ƒÆÇ≡ƒÆÇ≡ƒÆÇ")
+	// Welcome message
+	fmt.Println("╔═══════════════╗ GhostFilter ╔═══════════════╗")
+	fmt.Println("💀💀💀 Developed by ghost__man01 (https://x.com/ghost__man01) 💀💀💀")
 
 	// Check input file existence
 	if _, err := os.Stat(*inputFile); os.IsNotExist(err) {
@@ -195,25 +203,21 @@ func main() {
 	// Reading URLs and feeding to jobs
 	go func() {
 		scanner := bufio.NewScanner(file)
+		counter := 0
 		for scanner.Scan() {
+			counter++
 			jobs <- scanner.Text()
+			if counter%1000 == 0 {
+				fmt.Printf("Processed %d URLs...\n", counter)
+			}
+		}
+		if err := scanner.Err(); err != nil {
+			fmt.Printf("Error reading input file: %v\n", err)
 		}
 		close(jobs)
 	}()
 
-	// Collect results
-	var sensitiveURLs []string
-	go func() {
-		for result := range results {
-			sensitiveURLs = append(sensitiveURLs, result)
-		}
-	}()
-
-	// Wait for workers to finish
-	wg.Wait()
-	close(results)
-
-	// Write results to output file
+	// Open output file
 	output, err := os.Create(*outputFile)
 	if err != nil {
 		fmt.Printf("Error: Unable to create output file: %v\n", err)
@@ -221,17 +225,23 @@ func main() {
 	}
 	defer output.Close()
 
-	for _, url := range sensitiveURLs {
-		_, err := fmt.Fprintln(output, url)
-		if err != nil {
-			fmt.Printf("Error: Unable to write URL to output file: %v\n", err)
-			os.Exit(1)
+	// Collect and write results incrementally
+	go func() {
+		for result := range results {
+			_, err := output.WriteString(result + "\n")
+			if err != nil {
+				fmt.Printf("Error writing to output file: %v\n", err)
+			}
 		}
-	}
+	}()
 
-	// Save keyword statistics
+	// Wait for workers to finish
+	wg.Wait()
+	close(results)
+
+	// Save keyword counts to file
 	saveKeywordCounts(*keywordFile)
 
-	fmt.Printf("Filtering complete! Sensitive URLs saved to: %s\n", *outputFile)
+	fmt.Println("Processing complete.")
 }
 
